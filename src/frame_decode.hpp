@@ -98,7 +98,65 @@ public:
         return f.format == Frame::Format::YUYV ? yuyvC_.extract(f)
                                                : bgrC_.extract(f);
     }
+
+    // Downsample-then-convert: average the chroma over each output cell's
+    // source block and convert ONCE per cell. Because YUV->RGB is affine,
+    // averaging in YUV equals averaging in RGB (modulo clamping), so this is
+    // ~38x less conversion work than color() at 640x480 -> 160x50, with the
+    // same result. Fills `out` in place to avoid per-frame allocation.
+    void colorGrid(const Frame& f, int outW, int outH, ColorImage& out) const {
+        if (out.w != outW || out.h != outH) out = ColorImage(outW, outH);
+        if (f.format == Frame::Format::YUYV) yuyvGrid(f, outW, outH, out);
+        else                                 bgrGrid(f, outW, outH, out);
+    }
+
 private:
+    template <class Accum>
+    static void forBlocks(int W, int H, int outW, int outH, Accum accum) {
+        for (int oy = 0; oy < outH; ++oy) {
+            int y0 = (int)((long)oy * H / outH);
+            int y1 = (int)((long)(oy + 1) * H / outH);
+            if (y1 <= y0) y1 = y0 + 1;
+            for (int ox = 0; ox < outW; ++ox) {
+                int x0 = (int)((long)ox * W / outW);
+                int x1 = (int)((long)(ox + 1) * W / outW);
+                if (x1 <= x0) x1 = x0 + 1;
+                accum(ox, oy, x0, x1, y0, y1);
+            }
+        }
+    }
+
+    static void yuyvGrid(const Frame& f, int outW, int outH, ColorImage& out) {
+        const uint8_t* s = f.data.data();
+        const int W = f.w, H = f.h;
+        forBlocks(W, H, outW, outH,
+            [&](int ox, int oy, int x0, int x1, int y0, int y1) {
+                long sy = 0, su = 0, sv = 0, cnt = 0;
+                for (int y = y0; y < y1; ++y)
+                    for (int x = x0; x < x1; ++x) {
+                        size_t pix = (size_t)y * W + x, pair = pix >> 1;
+                        sy += s[pix * 2]; su += s[pair * 4 + 1]; sv += s[pair * 4 + 3];
+                        ++cnt;
+                    }
+                out.at(ox, oy) = yuv_to_rgb((int)(sy/cnt), (int)(su/cnt), (int)(sv/cnt));
+            });
+    }
+
+    static void bgrGrid(const Frame& f, int outW, int outH, ColorImage& out) {
+        const uint8_t* s = f.data.data();
+        const int W = f.w, H = f.h;
+        forBlocks(W, H, outW, outH,
+            [&](int ox, int oy, int x0, int x1, int y0, int y1) {
+                long sb = 0, sg = 0, sr = 0, cnt = 0;
+                for (int y = y0; y < y1; ++y)
+                    for (int x = x0; x < x1; ++x) {
+                        size_t pix = (size_t)y * W + x;
+                        sb += s[pix*3]; sg += s[pix*3+1]; sr += s[pix*3+2]; ++cnt;
+                    }
+                out.at(ox, oy) = RGB{ (uint8_t)(sr/cnt), (uint8_t)(sg/cnt), (uint8_t)(sb/cnt) };
+            });
+    }
+
     YuyvLumaExtractor  yuyvL_;
     BgrLumaExtractor   bgrL_;
     YuyvColorExtractor yuyvC_;

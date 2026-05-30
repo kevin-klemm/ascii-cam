@@ -26,6 +26,7 @@ struct Config {
     int    brightness = 0;
     bool   reverse    = false;
     bool   color      = true;
+    std::string color_mode = "truecolor";  // truecolor | 256 | 16 | mono
     bool   dither     = false;
     bool   edge       = false;
     int    edge_threshold = 0;
@@ -85,6 +86,7 @@ private:
         else if (key == "brightness") cfg.brightness = std::atoi(val.c_str());
         else if (key == "reverse")    cfg.reverse    = std::atoi(val.c_str()) != 0;
         else if (key == "color")      cfg.color      = std::atoi(val.c_str()) != 0;
+        else if (key == "color_mode") cfg.color_mode = unquote(val);
         else if (key == "dither")     cfg.dither     = std::atoi(val.c_str()) != 0;
         else if (key == "edge")       cfg.edge       = std::atoi(val.c_str()) != 0;
         else if (key == "edge_threshold") cfg.edge_threshold = std::atoi(val.c_str());
