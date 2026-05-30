@@ -113,7 +113,6 @@ int main(int argc, char** argv) {
     auto next = clk::now();
     auto t_prev = clk::now();
     double emit_fps = 0;
-    long n = 0;
     Frame frame;
     char status[192];
 
@@ -141,7 +140,6 @@ int main(int argc, char** argv) {
             rows + 1, source->name(), simd_backend(), cols, rows,
             emit_fps, st.changed, st.cells);
         sink.write(status, (size_t)len);
-        ++n;
 
         if (pace) {
             next += frame_dt;
@@ -155,6 +153,5 @@ int main(int argc, char** argv) {
     queue.close();
     if (producer.joinable()) producer.join();
     restore_terminal();
-    std::fprintf(stderr, "rendered %ld frames\n", n);
     return 0;
 }
