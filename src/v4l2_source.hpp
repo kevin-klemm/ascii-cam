@@ -68,6 +68,7 @@ public:
     }
 
     double fps() const override { return fps_; }
+    bool isRealtime() const override { return true; }   // hardware-paced
     const char* name() const override { return "v4l2"; }
 
 private:

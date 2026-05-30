@@ -16,6 +16,11 @@ struct Config {
     int    cap_width  = 640;
     int    cap_height = 480;
     double fps        = 0.0;       // 0 => take from the stream
+    // How to negotiate the webcam pixel format (numeric sources only):
+    //   auto  - let the driver pick (usually MJPEG; high fps)   [default]
+    //   mjpeg - force MJPEG, decode to BGR (high fps)
+    //   yuyv  - force raw YUYV -> SIMD luma path (often LOW fps on USB!)
+    std::string capture_format = "auto";
 
     // Output grid (0 => auto-detect from the terminal)
     int    cols = 0;
@@ -80,6 +85,7 @@ private:
         else if (key == "width")      cfg.cap_width  = std::atoi(val.c_str());
         else if (key == "height")     cfg.cap_height = std::atoi(val.c_str());
         else if (key == "fps")        cfg.fps        = std::atof(val.c_str());
+        else if (key == "capture_format") cfg.capture_format = unquote(val);
         else if (key == "cols")       cfg.cols       = std::atoi(val.c_str());
         else if (key == "rows")       cfg.rows       = std::atoi(val.c_str());
         else if (key == "contrast")   cfg.contrast   = std::atof(val.c_str());

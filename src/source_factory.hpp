@@ -55,7 +55,7 @@ inline std::unique_ptr<IFrameSource> makeSource(const Config& cfg) {
 
 #ifdef WITH_OPENCV
     return std::make_unique<OpenCvFrameSource>(
-        s, cfg.cap_width, cfg.cap_height, cfg.fps);
+        s, cfg.cap_width, cfg.cap_height, cfg.fps, cfg.capture_format);
 #else
   #if defined(__linux__)
     if (numeric)

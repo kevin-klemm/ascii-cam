@@ -35,6 +35,9 @@ public:
     }
 
     double fps() const override { return fps_; }
+    // A pipe may be a fast file dump (needs pacing) or a live feed; pace to
+    // the configured fps to be safe either way.
+    bool isRealtime() const override { return false; }
     const char* name() const override { return "pipe"; }
 
 private:

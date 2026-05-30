@@ -19,6 +19,12 @@ public:
     // Best-effort stream framerate (0 if unknown).
     virtual double fps() const = 0;
 
+    // True when the source paces itself in real time (a camera or live
+    // stream blocks read() at the hardware/stream rate). The consumer then
+    // renders on arrival instead of sleeping to a possibly-wrong fps guess.
+    // False for files / fast pipes, which need explicit pacing.
+    virtual bool isRealtime() const = 0;
+
     // Human-readable backend name for the status line.
     virtual const char* name() const = 0;
 };
