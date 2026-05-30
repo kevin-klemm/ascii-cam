@@ -94,6 +94,10 @@ int main(int argc, char** argv) {
     });
 
     // ---- consumer ------------------------------------------------------
+    // Realtime sources (cameras, live streams) pace themselves: read() blocks
+    // at the hardware rate, so we render on arrival and never throttle. Only
+    // files / fast pipes need explicit pacing to the target fps.
+    const bool pace = !source->isRealtime();
     FdSink sink(STDOUT_FILENO);
     auto next = clk::now();
     auto t_prev = clk::now();
@@ -111,16 +115,18 @@ int main(int argc, char** argv) {
         emit_fps = emit_fps == 0 ? inst : emit_fps * 0.9 + inst * 0.1;
 
         int len = std::snprintf(status, sizeof(status),
-            "\x1b[%d;1H\x1b[0m\x1b[2K[%s/%s] %dx%d  %.1f/%.0f fps  changed %zu/%zu",
+            "\x1b[%d;1H\x1b[0m\x1b[2K[%s/%s] %dx%d  %.1f fps  changed %zu/%zu",
             rows + 1, source->name(), simd_backend(), cols, rows,
-            emit_fps, fps, st.changed, st.cells);
+            emit_fps, st.changed, st.cells);
         sink.write(status, (size_t)len);
         ++n;
 
-        next += frame_dt;
-        now = clk::now();
-        if (next > now) std::this_thread::sleep_until(next);
-        else next = now;
+        if (pace) {
+            next += frame_dt;
+            now = clk::now();
+            if (next > now) std::this_thread::sleep_until(next);
+            else next = now;
+        }
     }
 
     g_running.store(false);
