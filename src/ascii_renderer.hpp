@@ -40,6 +40,15 @@ public:
     int cols() const { return cols_; }
     int rows() const { return rows_; }
 
+    // Re-fit the output grid (e.g. after a terminal resize). The filters,
+    // tone mapper and downsampler are size-agnostic; only the grid dims and
+    // the writer's diff buffers need updating. Forces a full redraw next frame.
+    void resize(int cols, int rows) {
+        if (cols <= 0 || rows <= 0 || (cols == cols_ && rows == rows_)) return;
+        cols_ = cols; rows_ = rows;
+        writer_.resize(cols, rows);
+    }
+
     Stats render(const Frame& frame, IOutputSink& sink) {
         // luma -> downscale -> float grid
         GrayImage small = down_.gray(decoder_->luma(frame), cols_, rows_);

@@ -91,6 +91,24 @@ TEST(color, xterm256_grayscale_and_cube) {
     CHECK_EQ(rgb_to_xterm256(255, 0, 0), 196);
 }
 
+TEST(ansi, resize_refits_grid_and_full_redraws) {
+    Palette p(" .:#@", false);
+    AnsiFrameWriter w(p, ColorMode::Mono);
+    w.resize(2, 2);
+    std::vector<uint8_t> a = {0, 1, 2, 3};
+    ColorImage none;
+    StringSink s1; w.render(a, none, s1);
+
+    w.resize(3, 1);                       // window changed shape
+    CHECK_EQ(w.cols(), 3);
+    CHECK_EQ(w.rows(), 1);
+    std::vector<uint8_t> b = {0, 1, 2};
+    StringSink s2;
+    auto st = w.render(b, none, s2);
+    CHECK_EQ(st.cells, 3u);
+    CHECK_EQ(st.changed, 3u);             // every cell redrawn after resize
+}
+
 TEST(color, ansi16_primaries) {
     CHECK_EQ(rgb_to_ansi16(0, 0, 0), 30);       // black
     CHECK_EQ(rgb_to_ansi16(200, 0, 0), 91);     // bright red
