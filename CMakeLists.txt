@@ -41,6 +41,12 @@ if(WITH_OPENCV)
 endif()
 
 # ----------------------------------------------------------------------------
+# Offline demo: renders a synthetic animated scene (no camera/OpenCV needed)
+# ----------------------------------------------------------------------------
+add_executable(demo demo/demo.cpp)
+target_include_directories(demo PRIVATE src)
+
+# ----------------------------------------------------------------------------
 # Unit tests (no OpenCV, no hardware required)
 # ----------------------------------------------------------------------------
 if(BUILD_TESTS)
