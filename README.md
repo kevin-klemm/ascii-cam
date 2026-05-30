@@ -105,6 +105,41 @@ decoding, the diff/temporal ANSI writer, and the bounded queue.
   artifacts (`linux-x86_64-iot`, `linux-x86_64`, `macos-arm64`) with SHA-256
   sums and publishes a GitHub Release.
 
+## Performance & running over SSH
+
+Benchmark (`bench/bench.cpp`, 640×480 → 160×50 grid = 8000 cells, Apple
+Silicon):
+
+| Case | ms/frame | FPS ceiling | bytes/frame | @30 fps |
+|---|--:|--:|--:|--:|
+| mono, motion | 0.22 | ~4400 | 689 | — |
+| color, motion | 0.47 | ~2100 | 4.9 K | 0.1 MB/s |
+| color, static scene | 0.45 | ~2200 | **0** | 0 (diff) |
+| truecolor, full-frame churn | 0.78 | ~1300 | 149 K | 4.5 MB/s |
+| 256-color, full-frame churn | 0.65 | ~1500 | 79 K | 2.4 MB/s |
+| 16-color, full-frame churn | 0.59 | ~1700 | 29 K | 0.9 MB/s |
+
+**Higher FPS:** the CPU is never the limit (>1000 fps headroom even in color);
+output is *FPS-locked to the source* by design. To actually run faster, give
+it a faster source — lower the capture resolution (`width`/`height`) so the
+camera offers 60 fps, or `fps=60`. Color conversion runs at grid resolution
+(`FrameDecoder::colorGrid`) and reuses buffers, so color costs ~2× mono, not
+~4×.
+
+**Over SSH the bottleneck is bytes, not CPU.** Three things keep it small:
+1. inter-frame diff — a still scene sends 0 bytes;
+2. color-pen coalescing — runs of same-colored cells share one escape;
+3. `color_mode` — drop to `256`, `16`, or `mono` to cut per-cell color cost.
+
+Worst case (every cell changing every frame) is ~4.5 MB/s in truecolor but
+~0.9 MB/s in 16-color and ~0.4 MB/s in mono — comfortable over SSH. Typical
+camera scenes sit at 0.1–0.6 MB/s in truecolor.
+
+```sh
+# light-weight remote view over ssh:
+asciicam ascii.conf /dev/video0   # with color_mode=16 in the config
+```
+
 ## Configuration
 
 See `ascii.conf` for every option (size, charset, color, dither, edges,

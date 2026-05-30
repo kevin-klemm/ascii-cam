@@ -26,14 +26,14 @@ public:
                   std::unique_ptr<FrameDecoder> decoder,
                   std::vector<std::unique_ptr<IFilter>> filters,
                   std::unique_ptr<IToneMapper> mapper,
-                  bool color)
+                  ColorMode mode)
         : cols_(cols), rows_(rows),
           palette_(std::move(palette)),
           decoder_(std::move(decoder)),
           filters_(std::move(filters)),
           mapper_(std::move(mapper)),
-          color_(color),
-          writer_(*palette_, color) {
+          color_(mode != ColorMode::Mono),
+          writer_(*palette_, mode) {
         writer_.resize(cols, rows);
     }
 
@@ -50,11 +50,12 @@ public:
 
         mapper_->map(grid, idx_);
 
-        ColorImage colorSmall;
-        if (color_)
-            colorSmall = down_.color(decoder_->color(frame), cols_, rows_);
+        // Convert color at grid resolution into a reused buffer (no full-res
+        // RGB image, no per-frame allocation). colorSmall_ stays empty in
+        // mono mode, which the writer treats as "no color".
+        if (color_) decoder_->colorGrid(frame, cols_, rows_, colorSmall_);
 
-        return writer_.render(idx_, colorSmall, sink);
+        return writer_.render(idx_, colorSmall_, sink);
     }
 
 private:
@@ -67,9 +68,19 @@ private:
     Downsampler                           down_;
     AnsiFrameWriter                       writer_;
     std::vector<uint8_t>                  idx_;
+    ColorImage                            colorSmall_;
 };
 
 // ---- composition root ---------------------------------------------------
+// color=0 forces Mono; otherwise color_mode selects the depth.
+inline ColorMode resolveColorMode(const Config& cfg) {
+    if (!cfg.color) return ColorMode::Mono;
+    if (cfg.color_mode == "mono") return ColorMode::Mono;
+    if (cfg.color_mode == "16")   return ColorMode::Ansi16;
+    if (cfg.color_mode == "256")  return ColorMode::Ansi256;
+    return ColorMode::TrueColor;   // default / "truecolor"
+}
+
 inline std::unique_ptr<AsciiRenderer>
 makeRenderer(const Config& cfg, int cols, int rows) {
     auto palette = std::make_shared<Palette>(cfg.charset, cfg.reverse);
@@ -86,5 +97,5 @@ makeRenderer(const Config& cfg, int cols, int rows) {
 
     return std::make_unique<AsciiRenderer>(
         cols, rows, palette, std::make_unique<FrameDecoder>(),
-        std::move(filters), std::move(mapper), cfg.color);
+        std::move(filters), std::move(mapper), resolveColorMode(cfg));
 }

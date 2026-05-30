@@ -6,7 +6,7 @@
 
 TEST(ansi, first_frame_draws_every_cell) {
     Palette p(" .:#@", false);
-    AnsiFrameWriter w(p, /*color=*/false);
+    AnsiFrameWriter w(p, ColorMode::Mono);
     w.resize(2, 2);
     std::vector<uint8_t> idx = {0, 1, 2, 3};
     ColorImage none;
@@ -19,7 +19,7 @@ TEST(ansi, first_frame_draws_every_cell) {
 
 TEST(ansi, identical_frame_changes_nothing) {
     Palette p(" .:#@", false);
-    AnsiFrameWriter w(p, false);
+    AnsiFrameWriter w(p, ColorMode::Mono);
     w.resize(2, 2);
     std::vector<uint8_t> idx = {0, 1, 2, 3};
     ColorImage none;
@@ -32,7 +32,7 @@ TEST(ansi, identical_frame_changes_nothing) {
 
 TEST(ansi, only_changed_cell_is_redrawn) {
     Palette p(" .:#@", false);
-    AnsiFrameWriter w(p, false);
+    AnsiFrameWriter w(p, ColorMode::Mono);
     w.resize(2, 2);
     std::vector<uint8_t> a = {0, 1, 2, 3};
     ColorImage none;
@@ -46,7 +46,7 @@ TEST(ansi, only_changed_cell_is_redrawn) {
 
 TEST(ansi, color_emits_truecolor_code) {
     Palette p(" .:#@", false);
-    AnsiFrameWriter w(p, /*color=*/true);
+    AnsiFrameWriter w(p, ColorMode::TrueColor);
     w.resize(1, 1);
     std::vector<uint8_t> idx = {2};
     ColorImage c(1, 1);
@@ -54,4 +54,46 @@ TEST(ansi, color_emits_truecolor_code) {
     StringSink sink;
     w.render(idx, c, sink);
     CHECK(sink.buffer.find("\x1b[38;2;12;34;56m") != std::string::npos);
+}
+
+TEST(ansi, ansi256_emits_palette_index) {
+    Palette p(" .:#@", false);
+    AnsiFrameWriter w(p, ColorMode::Ansi256);
+    w.resize(1, 1);
+    std::vector<uint8_t> idx = {2};
+    ColorImage c(1, 1);
+    c.at(0, 0) = RGB{255, 0, 0};   // pure red -> cube index 196
+    StringSink sink;
+    w.render(idx, c, sink);
+    CHECK(sink.buffer.find("\x1b[38;5;196m") != std::string::npos);
+}
+
+TEST(ansi, pen_coalesces_same_color_run) {
+    // Two horizontally adjacent cells of identical color emit the color code
+    // once, not twice (bandwidth win over SSH).
+    Palette p(" .:#@", false);
+    AnsiFrameWriter w(p, ColorMode::TrueColor);
+    w.resize(2, 1);
+    std::vector<uint8_t> idx = {2, 3};
+    ColorImage c(2, 1);
+    c.at(0, 0) = RGB{10, 20, 30};
+    c.at(1, 0) = RGB{10, 20, 30};
+    StringSink sink;
+    w.render(idx, c, sink);
+    size_t first = sink.buffer.find("\x1b[38;2;10;20;30m");
+    CHECK(first != std::string::npos);
+    CHECK(sink.buffer.find("\x1b[38;2;10;20;30m", first + 1) == std::string::npos);
+}
+
+TEST(color, xterm256_grayscale_and_cube) {
+    CHECK_EQ(rgb_to_xterm256(0, 0, 0), 16);
+    CHECK_EQ(rgb_to_xterm256(255, 255, 255), 231);
+    CHECK_EQ(rgb_to_xterm256(255, 0, 0), 196);
+}
+
+TEST(color, ansi16_primaries) {
+    CHECK_EQ(rgb_to_ansi16(0, 0, 0), 30);       // black
+    CHECK_EQ(rgb_to_ansi16(200, 0, 0), 91);     // bright red
+    CHECK_EQ(rgb_to_ansi16(0, 200, 0), 92);     // bright green
+    CHECK_EQ(rgb_to_ansi16(255, 255, 255), 97); // bright white
 }

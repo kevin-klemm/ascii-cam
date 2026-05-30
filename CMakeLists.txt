@@ -46,6 +46,10 @@ endif()
 add_executable(demo demo/demo.cpp)
 target_include_directories(demo PRIVATE src)
 
+# Micro-benchmark: ms/frame (CPU ceiling) and bytes/frame (SSH cost).
+add_executable(bench bench/bench.cpp)
+target_include_directories(bench PRIVATE src)
+
 # ----------------------------------------------------------------------------
 # Unit tests (no OpenCV, no hardware required)
 # ----------------------------------------------------------------------------
