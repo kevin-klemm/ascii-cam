@@ -40,10 +40,6 @@ public:
 
         double negotiated = cap_.get(cv::CAP_PROP_FPS);
         fps_ = fpsOverride > 0 ? fpsOverride : negotiated;
-        std::fprintf(stderr,
-            "[opencv] %.0fx%.0f  fourcc=%s  %.1f fps  (%s)\n",
-            cap_.get(cv::CAP_PROP_FRAME_WIDTH), cap_.get(cv::CAP_PROP_FRAME_HEIGHT),
-            fourcc().c_str(), negotiated, realtime_ ? "realtime" : "paced");
     }
 
     bool read(Frame& out) override {
@@ -86,13 +82,6 @@ private:
         return s.rfind("rtsp://", 0) == 0 || s.rfind("rtmp://", 0) == 0 ||
                s.rfind("http://", 0) == 0 || s.rfind("https://", 0) == 0 ||
                s.rfind("udp://", 0) == 0;
-    }
-
-    std::string fourcc() const {
-        int f = (int)cap_.get(cv::CAP_PROP_FOURCC);
-        char c[5] = { (char)(f & 255), (char)((f >> 8) & 255),
-                      (char)((f >> 16) & 255), (char)((f >> 24) & 255), 0 };
-        return c[0] ? std::string(c) : std::string("----");
     }
 
     cv::VideoCapture cap_;
