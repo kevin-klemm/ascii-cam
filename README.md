@@ -145,3 +145,8 @@ asciicam ascii.conf /dev/video0   # with color_mode=16 in the config
 See `ascii.conf` for every option (size, charset, color, dither, edges,
 brightness/contrast, reverse). Press `Ctrl-C` to quit; the terminal is
 restored on exit.
+
+**Live window resizing:** when `cols`/`rows` are left at `0` (auto-fit), the
+renderer follows the terminal — it handles `SIGWINCH`, re-fits the grid, and
+redraws on the next frame. Pin `cols`/`rows` in the config to keep a fixed
+size regardless of window changes.

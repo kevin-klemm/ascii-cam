@@ -22,7 +22,9 @@
 using clk = std::chrono::steady_clock;
 
 static std::atomic<bool> g_running{true};
+static std::atomic<bool> g_winch{false};
 static void on_signal(int) { g_running.store(false); }
+static void on_winch(int)  { g_winch.store(true); }
 
 static void restore_terminal() {
     const char* r = "\x1b[0m\x1b[?25h\x1b[2J\x1b[H";
@@ -71,13 +73,16 @@ int main(int argc, char** argv) {
     const auto frame_dt = std::chrono::duration_cast<clk::duration>(
         std::chrono::duration<double>(1.0 / fps));
 
+    // Auto-fit to the terminal unless the grid is pinned in the config.
+    const bool autosize = (cfg.cols <= 0 || cfg.rows <= 0);
     int cols = cfg.cols, rows = cfg.rows;
-    if (cols <= 0 || rows <= 0) terminal_size(cols, rows);
+    if (autosize) terminal_size(cols, rows);
 
     auto renderer = makeRenderer(cfg, cols, rows);
 
     std::signal(SIGINT, on_signal);
     std::signal(SIGTERM, on_signal);
+    if (autosize) std::signal(SIGWINCH, on_winch);   // follow window resizes
     { const char* init = "\x1b[2J\x1b[?25l";
       (void)!::write(STDOUT_FILENO, init, std::strlen(init)); }
 
@@ -107,6 +112,17 @@ int main(int argc, char** argv) {
     char status[192];
 
     while (g_running.load() && queue.pop(frame)) {
+        // Re-fit on terminal resize before rendering this frame.
+        if (g_winch.exchange(false)) {
+            int nc, nr; terminal_size(nc, nr);
+            if (nc != cols || nr != rows) {
+                cols = nc; rows = nr;
+                renderer->resize(cols, rows);
+                const char* clr = "\x1b[2J";          // wipe stale glyphs
+                sink.write(clr, std::strlen(clr));
+            }
+        }
+
         auto st = renderer->render(frame, sink);
 
         auto now = clk::now();
