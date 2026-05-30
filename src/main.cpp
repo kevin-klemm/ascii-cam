@@ -7,6 +7,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <thread>
 #include <sys/ioctl.h>
@@ -27,7 +28,10 @@ static void on_signal(int) { g_running.store(false); }
 static void on_winch(int)  { g_winch.store(true); }
 
 static void restore_terminal() {
-    const char* r = "\x1b[0m\x1b[?25h\x1b[2J\x1b[H";
+    // Reset colors, show the cursor, and leave the alternate screen buffer -
+    // this returns the terminal to exactly its pre-launch contents, leaving
+    // no ASCII frames behind in the scrollback.
+    const char* r = "\x1b[0m\x1b[?25h\x1b[?1049l";
     (void)!::write(STDOUT_FILENO, r, std::strlen(r));
 }
 
@@ -83,7 +87,9 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, on_signal);
     std::signal(SIGTERM, on_signal);
     if (autosize) std::signal(SIGWINCH, on_winch);   // follow window resizes
-    { const char* init = "\x1b[2J\x1b[?25l";
+    std::atexit(restore_terminal);                   // belt-and-suspenders cleanup
+    // Enter the alternate screen, clear it, hide the cursor.
+    { const char* init = "\x1b[?1049h\x1b[2J\x1b[H\x1b[?25l";
       (void)!::write(STDOUT_FILENO, init, std::strlen(init)); }
 
     // ---- producer ------------------------------------------------------
