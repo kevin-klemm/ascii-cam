@@ -91,9 +91,10 @@ inline std::string tuiPanel(const Config& cfg) {
 class TuiController {
 public:
     struct Poll {
-        bool changed = false;   // caller should reconfigure() the renderer
-        bool redraw  = false;   // caller should forceRedraw() (panel dismissed)
-        bool quit    = false;
+        bool changed        = false;  // caller should reconfigure() the renderer
+        bool redraw         = false;  // caller should forceRedraw() (panel toggled)
+        bool panelDismissed = false;  // panel just went visible -> hidden
+        bool quit           = false;
     };
 
     explicit TuiController(Config& cfg) : cfg_(cfg) {
@@ -144,7 +145,11 @@ public:
                 TuiAction a = applyTuiKey(cfg_, k);
                 if (a.changed) p.changed = true;
                 if (a.quit)    p.quit = true;
-                if (a.togglePanel) { panel_ = !panel_; p.redraw = true; }
+                if (a.togglePanel) {
+                    panel_ = !panel_;
+                    p.redraw = true;
+                    if (!panel_) p.panelDismissed = true;
+                }
             }
         }
         return p;
