@@ -7,7 +7,10 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <cstdio>
 #include <cstdlib>
+#include <utility>
+#include <vector>
 
 // Plain data record. No behaviour beyond holding values + defaults.
 struct Config {
@@ -100,5 +103,94 @@ private:
             std::string c = unquote(val);
             if (!c.empty()) cfg.charset = c;
         }
+    }
+};
+
+// Persists the live-adjustable settings back to a config file. The write is
+// surgical: recognised keys are updated in place - preserving comments, blank
+// lines, layout and any trailing comment (and its column) - and only appended
+// when absent. Capture/source keys are never rewritten, so a user's hand-tuned
+// `source`, resolution, etc. survive verbatim. Mirrors ConfigLoader: the
+// string->string transform (serialize) is pure and unit-tested; saveFile is
+// the thin I/O wrapper.
+class ConfigWriter {
+public:
+    static bool saveFile(const Config& cfg, const std::string& path) {
+        std::string existing;
+        {
+            std::ifstream in(path);
+            if (in) { std::stringstream ss; ss << in.rdbuf(); existing = ss.str(); }
+        }
+        std::ofstream out(path, std::ios::trunc);
+        if (!out) return false;
+        out << serialize(cfg, existing);
+        return out.good();
+    }
+
+    // Pure: current file contents + Config -> updated contents.
+    static std::string serialize(const Config& cfg, const std::string& existing) {
+        const auto kv = adjustable(cfg);
+        std::vector<bool> seen(kv.size(), false);
+
+        std::string out;
+        std::istringstream in(existing);
+        std::string line;
+        while (std::getline(in, line)) {
+            out += rewriteLine(line, kv, seen);
+            out += '\n';
+        }
+        for (size_t i = 0; i < kv.size(); ++i)
+            if (!seen[i]) { out += kv[i].first; out += " = "; out += kv[i].second; out += '\n'; }
+        return out;
+    }
+
+private:
+    // The exact set the TUI can change, in a stable order, serialised to the
+    // same textual form the loader expects (and the template uses).
+    static std::vector<std::pair<std::string, std::string>> adjustable(const Config& cfg) {
+        return {
+            {"contrast",       numd(cfg.contrast)},
+            {"brightness",     std::to_string(cfg.brightness)},
+            {"reverse",        cfg.reverse ? "1" : "0"},
+            {"color",          cfg.color   ? "1" : "0"},
+            {"color_mode",     cfg.color_mode},
+            {"dither",         cfg.dither  ? "1" : "0"},
+            {"edge",           cfg.edge    ? "1" : "0"},
+            {"edge_threshold", std::to_string(cfg.edge_threshold)},
+        };
+    }
+
+    static std::string numd(double v) {
+        char b[32]; std::snprintf(b, sizeof b, "%g", v); return b;
+    }
+
+    static std::string rewriteLine(
+            const std::string& line,
+            const std::vector<std::pair<std::string, std::string>>& kv,
+            std::vector<bool>& seen) {
+        std::string t = ConfigLoader::trim(line);
+        if (t.empty() || t[0] == '#') return line;          // blank / comment
+        size_t eq = line.find('=');
+        if (eq == std::string::npos) return line;
+        std::string key = ConfigLoader::trim(line.substr(0, eq));
+        for (size_t i = 0; i < kv.size(); ++i) {
+            if (key != kv[i].first) continue;
+            seen[i] = true;
+            // Keep everything up to '=' verbatim, drop the old value, keep any
+            // trailing comment. The adjustable values never contain '#', so the
+            // first '#' reliably starts the comment.
+            std::string prefix = line.substr(0, eq + 1);
+            std::string rem    = line.substr(eq + 1);
+            size_t hash = rem.find('#');
+            std::string region  = (hash == std::string::npos) ? rem : rem.substr(0, hash);
+            std::string comment = (hash == std::string::npos) ? "" : rem.substr(hash);
+            std::string nv = " " + kv[i].second;
+            // Pad to the old value's width only to hold a trailing comment's
+            // column; with no comment, avoid leaving trailing whitespace.
+            if (!comment.empty() && nv.size() < region.size())
+                nv.resize(region.size(), ' ');
+            return prefix + nv + comment;
+        }
+        return line;
     }
 };
