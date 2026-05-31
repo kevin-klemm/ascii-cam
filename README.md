@@ -42,8 +42,9 @@ there is no controlling terminal, the controls are simply inactive.
 | `?` / `h` | show/hide the settings overlay |
 | `q` / `Esc` | quit |
 
-Each change is written back to the active config file (the one named on the
-command line, or `ascii.conf`). The rewrite is surgical — only the adjusted
+Edits are written back to the active config file (the one named on the command
+line, or `ascii.conf`) when you hide the panel — and again on exit, so nothing
+is lost if you quit with it open. The rewrite is surgical: only the adjusted
 keys' values change; comments, layout, and your `source`/resolution settings
 are preserved. A missing config file is created with the current settings.
 

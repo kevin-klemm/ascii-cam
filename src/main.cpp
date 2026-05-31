@@ -115,6 +115,7 @@ int main(int argc, char** argv) {
     auto next = clk::now();
     auto t_prev = clk::now();
     double emit_fps = 0;
+    bool cfg_dirty = false;   // unsaved TUI edits, flushed on panel-dismiss/exit
     Frame frame;
     char status[192];
 
@@ -122,13 +123,19 @@ int main(int argc, char** argv) {
         // Fold in any pending keystrokes before rendering this frame.
         if (tui.enabled()) {
             auto pk = tui.poll();
-            if (pk.quit) { g_running.store(false); break; }
             if (pk.changed) {
                 renderer->reconfigure(cfg);                  // forces full redraw
-                ConfigWriter::saveFile(cfg, cfg_path);       // persist the change
+                cfg_dirty = true;                            // persist on dismiss
             } else if (pk.redraw) {
                 renderer->forceRedraw();                     // repaint under panel
             }
+            // Debounce disk writes: flush accumulated edits when the panel is
+            // hidden (and again on exit, below), not on every keystroke.
+            if (pk.panelDismissed && cfg_dirty) {
+                ConfigWriter::saveFile(cfg, cfg_path);
+                cfg_dirty = false;
+            }
+            if (pk.quit) { g_running.store(false); break; }
         }
 
         // Re-fit on terminal resize before rendering this frame.
@@ -175,6 +182,9 @@ int main(int argc, char** argv) {
     g_running.store(false);
     queue.close();
     if (producer.joinable()) producer.join();
+    // Safety flush: persist any edits not yet written (panel left open, or exit
+    // via q/Esc/Ctrl-C) so no adjustment is lost.
+    if (cfg_dirty) ConfigWriter::saveFile(cfg, cfg_path);
     restore_terminal();
     return 0;
 }
