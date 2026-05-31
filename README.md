@@ -21,6 +21,29 @@ asciicam [config.conf] [source]
 
 Press `Ctrl-C` to quit; the terminal is restored on exit.
 
+### Live controls (TUI)
+
+While running on a local terminal you can tune the render without restarting.
+Keys are read from `/dev/tty`, so this works regardless of the source (a
+`pipe:` feed can still own stdin). Press `?` to toggle an overlay of the
+current settings; changes apply on the next frame. When the output is piped or
+there is no controlling terminal, the controls are simply inactive.
+
+| Key | Action |
+|---|---|
+| `c` / `C` | contrast −/+ |
+| `b` / `B` | brightness −/+ |
+| `r` | toggle reverse |
+| `o` | toggle color |
+| `m` | cycle `color_mode` (truecolor → 256 → 16 → mono) |
+| `d` | toggle dithering |
+| `e` | toggle edge detection |
+| `t` / `T` | edge threshold −/+ |
+| `?` / `h` | show/hide the settings overlay |
+| `q` / `Esc` | quit |
+
+Adjustments are live-only — they are not written back to the config file.
+
 ### Sources
 
 The backend is selected from the form of the source string:
