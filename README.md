@@ -42,7 +42,10 @@ there is no controlling terminal, the controls are simply inactive.
 | `?` / `h` | show/hide the settings overlay |
 | `q` / `Esc` | quit |
 
-Adjustments are live-only — they are not written back to the config file.
+Each change is written back to the active config file (the one named on the
+command line, or `ascii.conf`). The rewrite is surgical — only the adjusted
+keys' values change; comments, layout, and your `source`/resolution settings
+are preserved. A missing config file is created with the current settings.
 
 ### Sources
 

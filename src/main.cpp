@@ -123,8 +123,12 @@ int main(int argc, char** argv) {
         if (tui.enabled()) {
             auto pk = tui.poll();
             if (pk.quit) { g_running.store(false); break; }
-            if (pk.changed)     renderer->reconfigure(cfg);  // forces full redraw
-            else if (pk.redraw) renderer->forceRedraw();     // repaint under panel
+            if (pk.changed) {
+                renderer->reconfigure(cfg);                  // forces full redraw
+                ConfigWriter::saveFile(cfg, cfg_path);       // persist the change
+            } else if (pk.redraw) {
+                renderer->forceRedraw();                     // repaint under panel
+            }
         }
 
         // Re-fit on terminal resize before rendering this frame.
