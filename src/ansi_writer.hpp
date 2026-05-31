@@ -59,6 +59,10 @@ public:
     int cols() const { return cols_; }
     int rows() const { return rows_; }
 
+    // Drop the diff history so the next render() re-emits every cell. Used to
+    // repaint after an overlay (e.g. the TUI panel) occluded part of the frame.
+    void forceRedraw() { first_ = true; }
+
     Stats render(const std::vector<uint8_t>& idx, const ColorImage& color,
                  IOutputSink& sink) {
         Stats st; st.cells = (size_t)cols_ * rows_;

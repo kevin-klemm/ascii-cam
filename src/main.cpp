@@ -19,6 +19,7 @@
 #include "source_factory.hpp"
 #include "ascii_renderer.hpp"
 #include "output_sink.hpp"
+#include "tui_control.hpp"
 
 using clk = std::chrono::steady_clock;
 
@@ -110,6 +111,7 @@ int main(int argc, char** argv) {
     // files / fast pipes need explicit pacing to the target fps.
     const bool pace = !source->isRealtime();
     FdSink sink(STDOUT_FILENO);
+    TuiController tui(cfg);   // live settings from /dev/tty (no-op without a tty)
     auto next = clk::now();
     auto t_prev = clk::now();
     double emit_fps = 0;
@@ -117,6 +119,14 @@ int main(int argc, char** argv) {
     char status[192];
 
     while (g_running.load() && queue.pop(frame)) {
+        // Fold in any pending keystrokes before rendering this frame.
+        if (tui.enabled()) {
+            auto pk = tui.poll();
+            if (pk.quit) { g_running.store(false); break; }
+            if (pk.changed)     renderer->reconfigure(cfg);  // forces full redraw
+            else if (pk.redraw) renderer->forceRedraw();     // repaint under panel
+        }
+
         // Re-fit on terminal resize before rendering this frame.
         if (g_winch.exchange(false)) {
             int nc, nr; terminal_size(nc, nr);
@@ -135,11 +145,20 @@ int main(int argc, char** argv) {
         t_prev = now;
         emit_fps = emit_fps == 0 ? inst : emit_fps * 0.9 + inst * 0.1;
 
+        const char* hint = (tui.enabled() && !tui.panelVisible())
+                          ? "  [?] controls" : "";
         int len = std::snprintf(status, sizeof(status),
-            "\x1b[%d;1H\x1b[0m\x1b[2K[%s/%s] %dx%d  %.1f fps  changed %zu/%zu",
+            "\x1b[%d;1H\x1b[0m\x1b[2K[%s/%s] %dx%d  %.1f fps  changed %zu/%zu%s",
             rows + 1, source->name(), simd_backend(), cols, rows,
-            emit_fps, st.changed, st.cells);
+            emit_fps, st.changed, st.cells, hint);
         sink.write(status, (size_t)len);
+
+        // Overlay last so it always wins over the frame it sits on. Dismissing
+        // it triggers a forceRedraw (above) to repaint the cells underneath.
+        if (tui.panelVisible()) {
+            std::string p = tui.panel();
+            sink.write(p.data(), p.size());
+        }
 
         if (pace) {
             next += frame_dt;
