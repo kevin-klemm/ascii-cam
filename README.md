@@ -1,4 +1,4 @@
-# AsciiEncodeRender
+# ascii-cam
 
 Real-time **webcam / RTSP / encoder-stream → ASCII → terminal** renderer in
 C++17. Output is FPS-locked to the source. It diffs frames and only redraws
