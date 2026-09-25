@@ -1,5 +1,9 @@
 # ascii-cam
 
+[![CI](https://github.com/kevin-klemm/ascii-cam/actions/workflows/ci.yml/badge.svg)](https://github.com/kevin-klemm/ascii-cam/actions/workflows/ci.yml)
+[![C++](https://img.shields.io/badge/C%2B%2B-17-blue)](https://isocpp.org)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Real-time **webcam / RTSP / encoder-stream → ASCII → terminal** renderer in
 C++17. Output is FPS-locked to the source. It diffs frames and only redraws
 changed cells, so it stays light enough to run over SSH (drop `color_mode` to
@@ -112,3 +116,7 @@ compiler.
 ```sh
 ctest --test-dir build --output-on-failure   # or: ./build/unit_tests
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Kevin Klemm

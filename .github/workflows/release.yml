@@ -31,7 +31,7 @@ jobs:
             opencv: "ON"
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install deps (Linux)
         if: runner.os == 'Linux'
@@ -58,12 +58,12 @@ jobs:
           DIST="asciicam-${{ matrix.name }}"
           mkdir -p "$DIST"
           cp build/asciicam "$DIST/"
-          cp ascii.conf README.md "$DIST/"
+          cp ascii.conf README.md LICENSE "$DIST/"
           tar -czf "$DIST.tar.gz" "$DIST"
           shasum -a 256 "$DIST.tar.gz" > "$DIST.tar.gz.sha256"
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: asciicam-${{ matrix.name }}
           path: |
@@ -74,11 +74,11 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
       - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true
